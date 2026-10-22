@@ -1,2 +1,2 @@
-import core2
+import app.core as core
 
