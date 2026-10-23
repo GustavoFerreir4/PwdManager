@@ -31,7 +31,7 @@ class Autenticador():
         token_de_verificacao = fernet.encrypt(self._TEXTO_DE_VERIFICACAO)
         return sal, token_de_verificacao
 
-    def destravar_cofre(self, senha_mestra: str, sal: bytes, token_de_verificacao: bytes):
+    def destravar_cofre(self, senha_mestra: str, sal: bytes, token_de_verificacao: bytes) -> Fernet:
         """
         Usado no LOGIN. Recria a chave e testa se ela abre o token de verificação.
         Senha certa  -> devolve o objeto Fernet (a "chave na mão", só na memória).
@@ -147,7 +147,7 @@ class PwdManager:
     
     """
     def __init__(self, banco):
-        self._auth = Authenticador()
+        self._auth = Autenticador()
         self._banco = Banco()
         self._usuario_id = None
         self._fernet = None          # a chave, só na memória
@@ -166,16 +166,26 @@ class PwdManager:
 
         return True
     
-    def entrar(self, nome, senha):     # levanta [SenhaIncorreta, UsuárioInexistente]
+    def entrar(self, nome, senha) -> bool:     # levanta [SenhaIncorreta, UsuárioInexistente]
         if not self._banco.usuario_existe(nome):
             raise Exception("Este usuário não existe.")
         
-        # sal, token = self._banco.buscar_usuario(nome=nome)
-        
-        
+        self._usuario_id, sal, token = self._banco.buscar_usuario(nome=nome)
+        self._fernet = self._auth.destravar_cofre(sal=sal, senha_mestra=senha, token_de_verificacao=token)   
+
+        if self._fernet:
+            return True
+        else:
+            return False
+
     def sair(self):                         # bloqueia o cofre
         self._usuario_id = None
         self._fernet = None
-    def adicionar(self, titulo, dados: dict): ...
-    def listar(self) -> list[dict]: ...     # já descriptografado
+
+    def adicionar(self, titulo:str, dados: dict):
+        if self._usuario_id and self._fernet:
+            pass
+    def listar(self) -> list[dict]:    # já descriptografado
+        pass
+    
     def remover(self, credencial_id): ...

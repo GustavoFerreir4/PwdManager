@@ -80,34 +80,36 @@ def excluir_credencial():
 i = 0
 
 print("BEM VINDO(A) AO PwdManager.")
-showActions(1) 
-action = int(input())
+# showActions(1) 
+# action = int(input())
 
-while action not in (1, 2, 3):
-    os.system("cls")
-    showActions(1) 
-    action = int(input())
+# while action not in (1, 2, 3):
+#     os.system("cls")
+#     showActions(1) 
+#     action = int(input())
 
-if action == 3:
-    os.close()
+# if action == 3:
+#     os.close()
 
-if action == 2:
-    print("Informe dados do usuário.")
-    username = input("usuário: ")
-    masterPwd = secret("senha: ")
-    if register(username, masterPwd):
-        print("Usuário registrado com sucesso!")
-        login(username, masterPwd)
-    else:
-        print("Este nome de usuário já existe.")
+# if action == 2:
+#     print("Informe dados do usuário.")
+#     username = input("usuário: ")
+#     masterPwd = secret("senha: ")
+#     if register(username, masterPwd):
+#         print("Usuário registrado com sucesso!")
+#         login(username, masterPwd)
+#     else:
+#         print("Este nome de usuário já existe.")
 
-if action == 1:
-    print("Informe os dados do usuário:")
-    username = input("usuário: ")
-    masterPwd = secret("senha: ")
-    if login(username, masterPwd):
-        print("usuário logado com sucesso.")
-        showActions(2)
-    else:
-        print("Senha incorreta.")
-sla = core.PwdManager().
+# if action == 1:
+#     print("Informe os dados do usuário:")
+#     username = input("usuário: ")
+#     masterPwd = secret("senha: ")
+#     if login(username, masterPwd):
+#         print("usuário logado com sucesso.")
+#         showActions(2)
+#     else:
+#         print("Senha incorreta.")
+sla = core.PwdManager("vault.db")
+
+sla.entrar("gustagusta", "123")
