@@ -10,7 +10,7 @@ class Authenticador():
 
     def __init__(self):
         """ se conseguirmos descriptografá-lo, é porque a senha mestra está certa."""
-        self.TEXTO_DE_VERIFICAÇÃO = b"V4ult-ok4y!"
+        self.TEXTO_DE_VERIFICACAO = b"V4ult-ok4y!"
         return
 
     def gerar_chave(self, senha_mestra: str, sal: bytes) -> bytes:
