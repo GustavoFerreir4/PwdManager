@@ -6,11 +6,12 @@ import sqlite3
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
-class Authenticador():
+class Autenticador():
 
     def __init__(self):
-        """ se conseguirmos descriptografá-lo, é porque a senha mestra está certa."""
-        self.TEXTO_DE_VERIFICACAO = b"V4ult-ok4y!"
+        """ se conseguirmos descriptografar TEXTO_DE_VERIFICACAO, é porque a senha mestra está certa."""
+        self._TEXTO_DE_VERIFICACAO = b"V4ult-ok4y!"
+        self._COMPRIMENTO_MINIMO = 8
         return
 
     def gerar_chave(self, senha_mestra: str, sal: bytes) -> bytes:
@@ -27,7 +28,7 @@ class Authenticador():
         """
         sal = os.urandom(16)
         fernet = Fernet(self.gerar_chave(senha_mestra, sal))
-        token_de_verificacao = fernet.encrypt(self.TEXTO_DE_VERIFICACAO)
+        token_de_verificacao = fernet.encrypt(self._TEXTO_DE_VERIFICACAO)
         return sal, token_de_verificacao
 
     def destravar_cofre(self, senha_mestra: str, sal: bytes, token_de_verificacao: bytes):
@@ -48,11 +49,19 @@ class Authenticador():
         texto_json = json.dumps(credencial)
         return fernet.encrypt(texto_json.encode("utf-8"))
 
-
     def descriptografar_credencial(self, fernet: Fernet, dados_criptografados: bytes) -> dict:
         """criptografado -> bytes -> texto JSON -> dict."""
         texto_json = fernet.decrypt(dados_criptografados).decode("utf-8")
         return json.loads(texto_json)
+
+    def verifica_comprimento_minimo_de_credencial(self, senha:str) -> bool:
+        """
+            Deveria seguir padrão estabelecido na configuração da aplicação.
+        """
+        if len(senha) >= self._COMPRIMENTO_MINIMO:
+            return True
+        
+        return False
 
 class Banco:
     def __init__(self, arquivo="vault.db"):
@@ -99,7 +108,7 @@ class Banco:
         conexao.commit()
         conexao.close()
 
-    def buscar_usuario(self, nome: str):
+    def buscar_usuario(self, nome: str) -> tuple:
         """Devolve (id, sal, token_de_verificacao) ou None."""
         conexao = self._conectar()
         linha = conexao.execute(
@@ -128,3 +137,45 @@ class Banco:
         ).fetchall()
         conexao.close()
         return linhas
+
+
+class PwdManager:
+    """ 
+        API interna para a interface gráfica 
+        - Sessão do usuário
+        - CRUD
+    
+    """
+    def __init__(self, banco):
+        self._auth = Authenticador()
+        self._banco = Banco()
+        self._usuario_id = None
+        self._fernet = None          # a chave, só na memória
+
+    def cadastrar(self, nome:str, senha:str) -> bool:   # levanta UsuarioJaExiste
+
+        if self._banco.usuario_existe(nome):
+            raise Exception("Este usuário já existe.")
+
+        sal, token = self._auth.criar_segredos_do_usuario(senha)
+        self._banco.salvar_usuario(
+            nome=nome,
+            sal=sal,
+            token_de_verificacao=token
+        )
+
+        return True
+    
+    def entrar(self, nome, senha):     # levanta [SenhaIncorreta, UsuárioInexistente]
+        if not self._banco.usuario_existe(nome):
+            raise Exception("Este usuário não existe.")
+        
+        # sal, token = self._banco.buscar_usuario(nome=nome)
+        
+        
+    def sair(self):                         # bloqueia o cofre
+        self._usuario_id = None
+        self._fernet = None
+    def adicionar(self, titulo, dados: dict): ...
+    def listar(self) -> list[dict]: ...     # já descriptografado
+    def remover(self, credencial_id): ...

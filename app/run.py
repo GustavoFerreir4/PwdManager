@@ -110,3 +110,4 @@ if action == 1:
         showActions(2)
     else:
         print("Senha incorreta.")
+sla = core.PwdManager().
