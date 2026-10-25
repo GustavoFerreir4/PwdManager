@@ -10,6 +10,7 @@ class Autenticador():
 
     def __init__(self):
         """ se conseguirmos descriptografar TEXTO_DE_VERIFICACAO, é porque a senha mestra está certa."""
+
         self._TEXTO_DE_VERIFICACAO = b"V4ult-ok4y!"
         self._COMPRIMENTO_MINIMO = 8
         return
@@ -42,26 +43,7 @@ class Autenticador():
             fernet.decrypt(token_de_verificacao)
             return fernet
         except InvalidToken:  # chave diferente => o Fernet recusa
-            return None
-
-    def criptografar_credencial(self, fernet: Fernet, credencial: dict) -> bytes:
-        """dict -> texto JSON -> bytes -> criptografado."""
-        texto_json = json.dumps(credencial)
-        return fernet.encrypt(texto_json.encode("utf-8"))
-
-    def descriptografar_credencial(self, fernet: Fernet, dados_criptografados: bytes) -> dict:
-        """criptografado -> bytes -> texto JSON -> dict."""
-        texto_json = fernet.decrypt(dados_criptografados).decode("utf-8")
-        return json.loads(texto_json)
-
-    def verifica_comprimento_minimo_de_credencial(self, senha:str) -> bool:
-        """
-            Deveria seguir padrão estabelecido na configuração da aplicação.
-        """
-        if len(senha) >= self._COMPRIMENTO_MINIMO:
-            return True
-        
-        return False
+            return None    
 
 class Banco:
     def __init__(self, arquivo="vault.db"):
@@ -85,7 +67,7 @@ class Banco:
             CREATE TABLE IF NOT EXISTS credenciais (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-                titulo TEXT NOT NULL,
+                titulo TEXT UNIQUE NOT NULL,
                 dados_criptografados BLOB NOT NULL
             );
         """)
@@ -130,14 +112,23 @@ class Banco:
 
     def listar_credenciais(self, usuario_id: int):
         """Devolve lista de (id, titulo, dados_criptografados)."""
+
         conexao = self._conectar()
         linhas = conexao.execute(
             "SELECT id, titulo, dados_criptografados FROM credenciais WHERE usuario_id = ?",
-            (usuario_id,),
+            (usuario_id)
         ).fetchall()
         conexao.close()
         return linhas
 
+    def buscar_credencial(self, titulo:str):
+        conexao = self._conectar()
+        linha = conexao.execute(
+            "SELECT id, titulo FROM credenciais WHERE titulo = ?",
+            (titulo,),
+        ).fetchone()
+        conexao.close()
+        return linha
 
 class PwdManager:
     """ 
@@ -153,7 +144,6 @@ class PwdManager:
         self._fernet = None          # a chave, só na memória
 
     def cadastrar(self, nome:str, senha:str) -> bool:   # levanta UsuarioJaExiste
-
         if self._banco.usuario_existe(nome):
             raise Exception("Este usuário já existe.")
 
@@ -182,10 +172,69 @@ class PwdManager:
         self._usuario_id = None
         self._fernet = None
 
-    def adicionar(self, titulo:str, dados: dict):
-        if self._usuario_id and self._fernet:
-            pass
-    def listar(self) -> list[dict]:    # já descriptografado
-        pass
+    def _adicionar(self, titulo:str, dados: dict) -> bool:
+        """
+            Adicionar credencial associada ao usuário da sessão se titulo não existir.
+            - título da credencial
+            - dict({'site': str, 'senha': str})
+        """
+        if not self._sessao_valida():
+            raise Exception("Sessão não é válida.")
+
+        if self._credencial_existe(titulo_credencial=titulo):
+            raise Exception("Já existe uma credencial com este nome.")
+
+        dados_criptografados = self.criptografar_credencial(fernet=self._fernet, credencial=dados)
+        self._banco.salvar_credencial(usuario_id=self._usuario_id, titulo=titulo, dados_criptografados=dados_criptografados)
+        
+        return True
+
+
+    def _listar(self) -> list[dict]:    # já descriptografado
+        if not self._sessao_valida():
+            raise Exception("Sessão não é válida.")
+
+        registros = self._banco.listar_credenciais(usuario_id=self._usuario_id)
+        credenciais = list()
+
+        for registro in registros:
+            dados_descriptografados = self.descriptografar_credencial(self._fernet, registro[2])
+            credenciais.append({'titulo': registro[1], 'site': dados_descriptografados['site'], 'senha': dados_descriptografados['senha']})
+
+        print(credenciais)
+
     
-    def remover(self, credencial_id): ...
+    def _remover(self, credencial_id): ...
+
+    def criptografar_credencial(self, fernet: Fernet, credencial: dict) -> bytes:
+        """dict -> texto JSON -> bytes -> criptografado."""
+        texto_json = json.dumps(credencial)
+        return fernet.encrypt(texto_json.encode("utf-8"))
+
+    def descriptografar_credencial(self, fernet: Fernet, dados_criptografados: bytes) -> dict:
+        """criptografado -> bytes -> texto JSON -> dict."""
+        texto_json = fernet.decrypt(dados_criptografados).decode("utf-8")
+        return json.loads(texto_json)
+
+    def verifica_comprimento_minimo_de_credencial(self, senha:str) -> bool:
+        """
+            Deveria seguir padrão estabelecido na configuração da aplicação.
+        """
+        if len(senha) >= self._COMPRIMENTO_MINIMO:
+            return True
+
+    def _sessao_valida(self):
+        if self._usuario_id and self._fernet:
+            return True
+        return False
+
+    def _credencial_existe(self, titulo_credencial:str) -> bool:
+        existeRegistro = bool(self._banco.buscar_credencial(titulo=titulo_credencial))
+        if existeRegistro:
+            return True
+        else:
+            return False
+        
+
+
+

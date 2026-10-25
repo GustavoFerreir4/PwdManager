@@ -112,4 +112,22 @@ print("BEM VINDO(A) AO PwdManager.")
 #         print("Senha incorreta.")
 sla = core.PwdManager("vault.db")
 
-sla.entrar("gustagusta", "123")
+# sla.cadastrar('usuário', 'senhaforte1365')
+
+
+if sla.entrar("usuário", "senhaforte1365"):
+    print("Entrei com usuário e senha!")
+else: 
+    print("Senha incorreta.")
+print()
+print("Vou registrar credencial:")
+print("titulo: Senac School")
+print("site: sp.senac.br    senha: teste123")
+print()
+print()
+print("Senha cadastrada?")
+print(sla._adicionar(titulo='Senac teams', dados={'site': 'microsoft.com', 'senha': 'gustagustaaaaaaa'}))
+print("Listando credenciais:")
+print(sla._listar())
+
+
